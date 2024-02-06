@@ -276,21 +276,21 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            console.log(core.getInput('needs.doclint.outputs.ERROR'))
-            console.log(core.getInput('needs.doclint.outputs.SRC_FAILED'))
-            console.log(core.getInput('needs.doclint.outputs.SRC_FR_FAILED'))
+            console.log(core.getOutput('needs.doclint.outputs.ERROR'))
+            console.log(core.getOutput('needs.doclint.outputs.SRC_FAILED'))
+            console.log(core.getOutput('needs.doclint.outputs.SRC_FR_FAILED'))
             let body = 'There are errors in the code, please fix them:\n'
-            if (core.getInput('needs.doclint.outputs.ERROR') == 'true') {
+            if (core.getOutput('needs.doclint.outputs.ERROR') == 'true') {
               body += '- Doclint found errors or warnings\n'
-              body += core.getInput('needs.doclint.outputs.REASON')
+              body += core.getOutput('needs.doclint.outputs.REASON')
             }
-            if (core.getInput('needs.dirlint.outputs.SRC_FAILED') == 'true') {
+            if (core.getOutput('needs.dirlint.outputs.SRC_FAILED') == 'true') {
               body += '- There are files in the root package, please move them to a package\n'
-              body += core.getInput('needs.dirlint.outputs.SRC_FILES')
+              body += core.getOutput('needs.dirlint.outputs.SRC_FILES')
             }
-            if (core.getInput('needs.dirlint.outputs.SRC_FR_FAILED') == 'true') {
+            if (core.getOutput('needs.dirlint.outputs.SRC_FR_FAILED') == 'true') {
               body += '- There are files in the fr package, please move them to a package\n'
-              body += core.getInput('needs.dirlint.outputs.SRC_FR_FILES')
+              body += core.getOutput('needs.dirlint.outputs.SRC_FR_FILES')
             }
             github.rest.pulls.createReview({
               owner: context.repo.owner,
