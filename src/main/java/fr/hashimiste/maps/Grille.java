@@ -45,7 +45,7 @@ public class Grille {
      
      
      
-     @SuppressWarnings("doclint:all")
+     @SuppressWarnings("all")
     public Object getObject() {
         return difficulte;
     }
