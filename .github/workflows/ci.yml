@@ -57,7 +57,9 @@ jobs:
       - name: Execute Gradle javadoc
         run: javadoc -Xdoclint:all -sourcepath src/main/java -subpackages fr -d doc/ > doclint.log 2> doclint.err
       - run: cat doclint.log
+        if: always()
       - run: cat doclint.err
+        if: always()
       - name: Check for doclint errors
         id: doclint-errors
         run: |
