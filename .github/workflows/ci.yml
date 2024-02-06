@@ -56,16 +56,21 @@ jobs:
       - run: env
       - name: Execute Gradle build
         id: build-export
-        run: | 
-        (./gradlew build 2>&1) | tee gradle.log
-        if [ $? -ne 0 ]; then
-          echo "ERROR=true" >> "$GITHUB_OUTPUT"
-          {
-            echo 'REASON<<EOF'
-            cat gradle.log
-            echo EOF
-          } >> "$GITHUB_OUTPUT"
-        fi
+        run: |
+          set +e
+          (./gradlew build 2>&1) | tee gradle.log
+          if [ $? -ne 0 ]; then
+            echo "ERROR=true" >> "$GITHUB_OUTPUT"
+            {
+              echo 'REASON<<EOF'
+              cat gradle.log
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+          fi
+#      - name: Export result
+#        id: build-export
+#        run: |
+
   test:
     name: Test
     if: needs.build.result == 'success'
@@ -287,7 +292,7 @@ jobs:
           name: ci-setup
       - name: Deny PR
         if: needs.doclint.outputs.ERROR == 'true' || needs.dirlint.outputs.SRC_FAILED ==
-          'true' || needs.dirlint.outputs.SRC_FR_FAILED == 'true' || needs.build.outputs.ERROR != '0'
+          'true' || needs.dirlint.outputs.SRC_FR_FAILED == 'true' || needs.build.outputs.ERROR == 'true'
         uses: actions/github-script@v7
         env:
           DOCLINT_ERROR: ${{needs.doclint.outputs.ERROR}}
@@ -329,7 +334,7 @@ jobs:
               console.log(process.env.DIRLINT_SRC_FR_FILES);
               console.log(body);
             }
-            if (`${{needs.build.outputs.ERROR}}` != '0') {
+            if (`${{needs.build.outputs.ERROR}}` == 'true') {
               body += `\n<details><summary>There are errors in the build</summary>\n<p>${process.env.GRADLE_REASON}</p></details>`
               console.log(process.env.GRADLE_ERROR);
               console.log(process.env.GRADLE_REASON);
@@ -345,7 +350,7 @@ jobs:
             })
       - name: Approve PR
         if: needs.doclint.outputs.ERROR != 'true' && needs.dirlint.outputs.SRC_FAILED !=
-          'true' && needs.dirlint.outputs.SRC_FR_FAILED != 'true'
+          'true' && needs.dirlint.outputs.SRC_FR_FAILED != 'true' && needs.build.outputs.ERROR != 'true'
         uses: actions/github-script@v7
         with:
           script: |
