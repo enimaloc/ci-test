@@ -254,20 +254,20 @@ jobs:
         with:
           name: ci-setup
       - name: Deny PR
-        if: steps.doclint.outputs.ERROR == 'true' || steps.dircheck.outputs.SRC_FAILED == 'true' || steps.dircheck.outputs.SRC_FR_FAILED == 'true'
+        if: needs.doclint.doclint-summary.outputs.ERROR == 'true' || needs.dirlint.dircheck.outputs.SRC_FAILED == 'true' || needs.dirlint.dircheck.outputs.SRC_FR_FAILED == 'true'
         uses: actions/github-script@v7
         with:
           script: |
             let body = 'There are errors in the code, please fix them:\n';
-            if (steps.doclint.outputs.ERROR == 'true') {
+            if (needs.doclint.doclint-summary.outputs.ERROR == 'true') {
               body += '- Doclint found errors or warnings\n';
               body += core.getInput('steps.doclint-summary.outputs.REASON');
             }
-            if (steps.dircheck.outputs.SRC_FAILED == 'true') {
+            if (needs.dirlint.dircheck.outputs.SRC_FAILED == 'true') {
               body += '- There are files in the root package, please move them to a package\n';
               body += core.getInput('steps.dircheck.outputs.SRC_FILES');
             }
-            if (steps.dircheck.outputs.SRC_FR_FAILED == 'true') {
+            if (needs.dirlint.dircheck.outputs.SRC_FR_FAILED == 'true') {
               body += '- There are files in the fr package, please move them to a package\n';
               body += core.getInput('steps.dircheck.outputs.SRC_FR_FILES');
             }
@@ -279,7 +279,7 @@ jobs:
               body: body
             });
       - name: Approve PR
-        if: steps.doclint.outputs.ERROR != 'true' && steps.dircheck.outputs.SRC_FAILED != 'true' && steps.dircheck.outputs.SRC_FR_FAILED != 'true'
+        if: needs.doclint.doclint-summary.outputs.ERROR != 'true' && needs.dirlint.dircheck.outputs.SRC_FAILED != 'true' && needs.dirlint.dircheck.outputs.SRC_FR_FAILED != 'true'
         uses: actions/github-script@v7
         with:
           script: |
