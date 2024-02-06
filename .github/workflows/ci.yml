@@ -119,18 +119,8 @@ jobs:
                 body: 'DocLint found errors or warnings',
                 comments: comments
               });
-            } else {
-              for (const comment of comments) {
-                await github.rest.repos.createCommitComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                    commit_sha: context.sha,
-                    path: comment.path,
-                    position: comment.line,
-                    body: comment.body
-                });
-              }
             }
+            fs.writeFileSync(process.env.GITHUB_STEP_SUMMARY, comments.map(comment => `* ${comment.path}:${comment.line} - ${comment.body}`).join('\n'));
       - name: Approve PR
         if: steps.doclint-errors.outputs.error != 'true' && steps.doclint-warnings.outputs.warning != 'true' && github.event_name == 'pull_request'
         uses: actions/github-script@v7
