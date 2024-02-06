@@ -287,7 +287,7 @@ jobs:
             }
             if (core.getInput('needs.dirlint.outputs.SRC_FR_FAILED') == 'true') {
               body += '- There are files in the fr package, please move them to a package\n'
-              body += ${{ needs.dirlint.outputs.SRC_FR_FILES }}
+              body += core.getInput('needs.dirlint.outputs.SRC_FR_FILES')
             }
             github.rest.pulls.createReview({
               owner: context.repo.owner,
@@ -295,7 +295,7 @@ jobs:
               pull_number: context.payload.pull_request.number,
               event: 'REQUEST_CHANGES',
               body: body
-            });
+            })
       - name: Approve PR
         if: needs.doclint.outputs.ERROR != 'true' && needs.dirlint.outputs.SRC_FAILED !=
           'true' && needs.dirlint.outputs.SRC_FR_FAILED != 'true'
