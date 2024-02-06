@@ -270,6 +270,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
+            console.log(core.getInput('needs.dirlint.outputs.SRC_FILES'));
             let body = 'There are errors in the code, please fix them:\n';
             if (core.getInput('needs.doclint.outputs.ERROR') == 'true') {
               body += '- Doclint found errors or warnings\n';
