@@ -375,7 +375,7 @@ jobs:
               console.log(body);
             }
             if (process.env.LINUX_GRADLE_ERROR == 'true') {
-              body += '\n<details><summary>There are errors in the Linux build</summary>\n```logs\n\n';
+              body += '\n<details><summary>There are errors in the Linux build</summary>\n\n```logs\n\n';
               body += process.env.LINUX_GRADLE_REASON;
               body += '\n```</details>';
               console.log(process.env.LINUX_GRADLE_ERROR);
@@ -383,7 +383,7 @@ jobs:
               console.log(body);
             }
             if (process.env.MACOS_GRADLE_ERROR == 'true') {
-              body += '\n<details><summary>There are errors in the MacOS build</summary>\n```logs\n\n';
+              body += '\n<details><summary>There are errors in the MacOS build</summary>\n\n```logs\n\n';
               body += process.env.MACOS_GRADLE_REASON;
               body += '\n```</details>';
               console.log(process.env.MACOS_GRADLE_ERROR);
@@ -391,7 +391,7 @@ jobs:
               console.log(body);
             }
             if (process.env.WINDOWS_GRADLE_ERROR == 'true') {
-              body += '\n<details><summary>There are errors in the Windows build</summary>\n```logs\n\n';
+              body += '\n<details><summary>There are errors in the Windows build</summary>\n\n```logs\n\n';
               body += process.env.WINDOWS_GRADLE_REASON;
               body += '\n```</details>';
               console.log(process.env.WINDOWS_GRADLE_ERROR);
