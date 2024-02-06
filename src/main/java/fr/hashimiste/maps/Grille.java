@@ -24,7 +24,7 @@ public class Grille {
     public Grille(Object difficulte, List<Object> iles, List<Object> ponts) {
         this.difficulte = difficulte;
         this.iles = iles;
-        this.ponts = ponts;
+        this.ponts = pon.ts;
     }
 
     /**
