@@ -59,7 +59,6 @@ jobs:
           distribution: temurin
           java-version: 16
           cache: gradle
-      - run: env
       - name: Execute Gradle build on Unix
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
         id: build-export-unix
@@ -67,6 +66,7 @@ jobs:
           set +e
           (./gradlew build 2>&1) | tee gradle.log
           exit=$PIPESTATUS[0]
+          echo "${RUNNER_OS}_ERROR=$exit"
           if [ $exit -ne 0 ]; then
             echo "${RUNNER_OS}_ERROR=true" >> "$GITHUB_OUTPUT"
             {
@@ -90,6 +90,8 @@ jobs:
             Add-Content -Path $env:GITHUB_OUTPUT -Value "EOF"
           }
         shell: pwsh
+      - run: env
+        if: always()
 
 
   test:
@@ -372,19 +374,25 @@ jobs:
               console.log(body);
             }
             if (process.env.LINUX_GRADLE_ERROR == 'true') {
-              body += `\n<details><summary>There are errors in the Linux build</summary>\n`+'```'+`\n${process.env.LINUX_GRADLE_REASON}`+'```</details>'
+              body += '\n<details><summary>There are errors in the Linux build</summary>\n```\n';
+              body += process.env.LINUX_GRADLE_REASON;
+              body += '\n```</details>';
               console.log(process.env.LINUX_GRADLE_ERROR);
               console.log(process.env.LINUX_GRADLE_REASON);
               console.log(body);
             }
             if (process.env.MACOS_GRADLE_ERROR == 'true') {
-              body += `\n<details><summary>There are errors in the MacOS build</summary>\n`+'```'+`\n${process.env.MACOS_GRADLE_REASON}\n`+'```</details>'
+              body += '\n<details><summary>There are errors in the MacOS build</summary>\n```\n';
+              body += process.env.MACOS_GRADLE_REASON;
+              body += '\n```</details>';
               console.log(process.env.MACOS_GRADLE_ERROR);
               console.log(process.env.MACOS_GRADLE_REASON);
               console.log(body);
             }
             if (process.env.WINDOWS_GRADLE_ERROR == 'true') {
-              body += `\n<details><summary>There are errors in the Windows build</summary>\n`+'```'+`\n${process.env.WINDOWS_GRADLE_REASON}\n`+'```</details>'
+              body += '\n<details><summary>There are errors in the Windows build</summary>\n```\n';
+              body += process.env.WINDOWS_GRADLE_REASON;
+              body += '\n```</details>';
               console.log(process.env.WINDOWS_GRADLE_ERROR);
               console.log(process.env.WINDOWS_GRADLE_REASON);
               console.log(body);
