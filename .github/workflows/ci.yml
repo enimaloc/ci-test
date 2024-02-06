@@ -198,6 +198,7 @@ jobs:
                     line: line,
                     title: message
                   });
+                }
               }
             }
 
@@ -214,12 +215,12 @@ jobs:
 
             core.setOutput('ERROR', 'true');
 
-            core.setOutput('REASON', comments.map(comment => `${comment.path}:${comment.line} - ${comment.body}`).join('\n'));
+            core.setOutput('REASON', comments.map(comment => `${comment.path}:${comment.line} - ${comment.body}`).join('\0'));
   gendoc:
     name: Generate documentation
-    if: needs.doclint.result == 'success' && github.event_name == 'pull_request'
+    if: needs.doclint.result == 'success' && github.event_name == 'pull_request' && needs.build.outputs.LINUX_ERROR != 'true'
     runs-on: ubuntu-latest
-    needs: doclint
+    needs: [doclint, build]
     steps:
       - name: Restore current directory
         uses: alehechka/download-tartifact@v2
@@ -259,15 +260,15 @@ jobs:
 
 
             if (fs.existsSync('src/main/java')) {
-              const files = fs.readdirSync('src/main/java').filter(file => path.extname(file) === '.java');
+              const files = fs.readdirSync('src/main/java').filter(file => path.extname(file) === '.java').map(file => `src/main/java/${file}`);
               if (files.length > 0) {
                 process.env.SRC_FAILED = 'true';
-                process.env.SRC_FILES = files.join(', ');
+                process.env.SRC_FILES = files.join('\n');
                 fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${files.join('\n')}\n`);
                 core.setOutput('SRC_FAILED', 'true');
                 core.setOutput('SRC_FILES', files.join('\n'));
                 for (const file of files) {
-                  console.error({
+                  core.error({
                     file: file,
                     title: 'File in root package'
                   });
@@ -278,15 +279,15 @@ jobs:
             }
 
             if (fs.existsSync('src/main/java/fr')) {
-              const files = fs.readdirSync('src/main/java/fr').filter(file => path.extname(file) === '.java');
+              const files = fs.readdirSync('src/main/java/fr').filter(file => path.extname(file) === '.java').map(file => `src/main/java/fr/${file}`);
               if (files.length > 0) {
                 process.env.SRC_FR_FAILED = 'true';
-                process.env.SRC_FR_FILES = files.join(', ');
+                process.env.SRC_FR_FILES = files.join('\n');
                 fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${files.join('\n')}\n`);
                 core.setOutput('SRC_FR_FAILED', 'true');
                 core.setOutput('SRC_FR_FILES', files.join('\n'));
                 for (const file of files) {
-                  console.error({
+                  core.error({
                     file: file,
                     title: 'File in fr package'
                   });
@@ -343,13 +344,19 @@ jobs:
             console.log(process.env);
             
             let body = 'There are errors in the code, please fix them:'
-            if (`${{needs.doclint.outputs.ERROR}}` == 'true') {
-              body += `\n<details><summary>There are errors in the documentation</summary>\n<p>${process.env.DOCLINT_REASON}</p></details>`
+            if (process.env.DOCLINT_ERROR == 'true') {
+              body += `\n<details><summary>There are errors in the documentation</summary>\n<p>`
+              let issues = process.env.DOCLINT_REASON.split('\0');
+              for (const issue of issues) {
+                  const [file, line, message] = issue.split(':');
+                  body += `\n${file}:${line} - ${message}`;
+              }
+              body += `\n</p></details>`
               console.log(process.env.DOCLINT_ERROR);
               console.log(process.env.DOCLINT_REASON);
               console.log(body);
             }
-            if (`${{needs.dirlint.outputs.SRC_FAILED}}` == 'true') {
+            if (process.env.DIRLINT_SRC_FAILED == 'true') {
               body += `\n<details><summary>There are files in the root package, please move them to a package</summary>\n<p>${process.env.DIRLINT_SRC_FILES}</p></details>`
               console.log(process.env.DIRLINT_SRC_FAILED);
               console.log(process.env.DIRLINT_SRC_FILES);
@@ -361,20 +368,20 @@ jobs:
               console.log(process.env.DIRLINT_SRC_FR_FILES);
               console.log(body);
             }
-            if (`${{needs.build.outputs.LINUX_GRADLE_ERROR}}` == 'true') {
+            if (process.env.LINUX_GRADLE_ERROR == 'true') {
               body += `\n<details><summary>There are errors in the Linux build</summary>\n<p>${process.env.LINUX_GRADLE_REASON}</p></details>`
               console.log(process.env.LINUX_GRADLE_ERROR);
               console.log(process.env.LINUX_GRADLE_REASON);
               console.log(body);
             }
-            if (`${{needs.build.outputs.MACOS_GRADLE_ERROR}}` == 'true') {
+            if (process.env.MACOS_GRADLE_ERROR == 'true') {
               body += `\n<details><summary>There are errors in the MacOS build</summary>\n<p>${process.env.MACOS_GRADLE_REASON}</p></details>`
               console.log(process.env.MACOS_GRADLE_ERROR);
               console.log(process.env.MACOS_GRADLE_REASON);
               console.log(body);
             }
-            if (`${{needs.build.outputs.WINDOWS_GRADLE_ERROR}}` == 'true') {
-              body += `\n<details><summary>There are errors in the Windows build</summary>\n<p>${process.env.WINDOWS_GRADLE_REASON}</p></details>`
+            if (process.env.WINDOWS_GRADLE_ERROR == 'true') {
+              body += `\n<details><summary>There are errors in the Windows build</summary>\n\`\`\`\n${process.env.WINDOWS_GRADLE_REASON}\n\`\`\`</details>`
               console.log(process.env.WINDOWS_GRADLE_ERROR);
               console.log(process.env.WINDOWS_GRADLE_REASON);
               console.log(body);
