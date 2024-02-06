@@ -65,11 +65,10 @@ jobs:
           set +e
           (./gradlew build 2>&1) | tee gradle.log
           exit=$PIPESTATUS
-          echo "${RUNNER_OS}_ERROR=$exit"
           if [ $exit -ne 0 ]; then
             echo "${RUNNER_OS}_ERROR=true" >> "$GITHUB_OUTPUT"
             {
-              echo '${RUNNER_OS}_REASON<<EOF'
+              echo "${RUNNER_OS}_REASON<<EOF"
               cat gradle.log
               echo EOF
             } >> "$GITHUB_OUTPUT"
@@ -90,6 +89,8 @@ jobs:
           }
         shell: pwsh
       - run: env
+        if: always()
+      - run: cat $GITHUB_OUTPUT
         if: always()
 
 
