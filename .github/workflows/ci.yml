@@ -96,7 +96,7 @@ jobs:
                 comments.push({
                   path: file,
                   line: parseInt(line),
-                  body: `[${type}] ${message}`
+                  body: `[${type}] ${message.replace(/(@\w+)/g, '`$1`');}`
                 });
               }
             }
