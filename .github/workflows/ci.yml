@@ -272,6 +272,9 @@ jobs:
         with:
           script: |
             console.log(core.getInput('needs.dirlint.outputs.SRC_FILES'));
+#            console.log(core.getInput('needs.dirlint.outputs'));
+            console.log(${{ needs.dirlint.outputs.SRC_FILES }});
+#            console.log(${{ needs.dirlint.outputs }});
       - name: Approve PR
         if: needs.doclint.outputs.ERROR != 'true' && needs.dirlint.outputs.SRC_FAILED != 'true' && needs.dirlint.outputs.SRC_FR_FAILED != 'true'
         uses: actions/github-script@v7
