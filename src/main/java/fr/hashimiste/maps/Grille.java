@@ -36,7 +36,7 @@ public class Grille {
      
      
 
-    @SuppressWarnings("javadoc")
+    @SuppressWarnings("doclint")
     public Grille(Object difficulte) {
         this(difficulte, new ArrayList<>());
     }
@@ -45,7 +45,7 @@ public class Grille {
      
      
      
-     
+     @SuppressWarnings("doclint:all")
     public Object getObject() {
         return difficulte;
     }
