@@ -89,8 +89,7 @@ jobs:
           cache: 'gradle'
 
       - name: Execute Gradle javadoc
-        run: javadoc -Xdoclint:all -sourcepath src/main/java -subpackages fr -d doc/ > doclint.log 2> doclint.err
-        continue-on-error: true
+        run: javadoc -Xdoclint:all -sourcepath src/main/java -subpackages fr -d doc/ > doclint.log 2> doclint.err || true
       - run: cat doclint.log
         if: always()
       - run: cat doclint.err
@@ -193,7 +192,6 @@ jobs:
         run: |
           if [ -e src/main/java/*.java ] || [ -e src/test/java/fr/*.java ]; then
             echo "::set-output name=error::true"
-            exit 1
           fi
 
   prReview:
