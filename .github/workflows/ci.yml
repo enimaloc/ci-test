@@ -6,7 +6,6 @@ on:
   pull_request:
     branches:
       - master
-
 jobs:
   setup:
     name: Setup CI
@@ -15,12 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 16
-          cache: 'gradle'
+          cache: gradle
       - name: Make Gradlew executable
         run: chmod +x gradlew
       - name: Saving current directory
@@ -28,18 +27,27 @@ jobs:
         with:
           name: ci-setup
           path: .
-
   build:
     name: Build
     if: needs.setup.result == 'success'
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
         exclude:
-          - os: ${{ github.event_name != 'pull_request' && 'macos-latest' || 'none' }}
+          - os: ${{ (github.event_name != 'pull_request' || github.repository != 'projet-gl2/Hashimiste') && 'macos-latest' || 'none' }}
           - os: ${{ github.event_name != 'pull_request' && 'windows-latest' || 'none' }}
     runs-on: ${{ matrix.os }}
     needs: setup
+    outputs:
+        LINUX_ERROR: ${{ steps.build-export-unix.outputs.Linux_ERROR }}
+        LINUX_REASON: ${{ steps.build-export-unix.outputs.Linux_REASON }}
+        MACOS_ERROR: ${{ steps.build-export-unix.outputs.macOS_ERROR }}
+        MACOS_REASON: ${{ steps.build-export-unix.outputs.macOS_REASON }}
+        WINDOWS_ERROR: ${{ steps.build-export-windows.outputs.Windows_ERROR }}
+        WINDOWS_REASON: ${{ steps.build-export-windows.outputs.Windows_REASON }}
     steps:
       - name: Restore current directory
         uses: alehechka/download-tartifact@v2
@@ -49,10 +57,37 @@ jobs:
         with:
           distribution: temurin
           java-version: 16
-          cache: 'gradle'
+          cache: gradle
+      - run: env
+      - name: Execute Gradle build on Unix
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'macos-latest'
+        id: build-export-unix
+        run: |
+          set +e
+          (./gradlew build 2>&1) | tee gradle.log
+          if [ $? -ne 0 ]; then
+            echo "${RUNNER_OS}_ERROR=true" >> "$GITHUB_OUTPUT"
+            {
+              echo '${RUNNER_OS}_REASON<<EOF'
+              cat gradle.log
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+          fi
+      - name: Execute Gradle build on Windows
+        if: matrix.os == 'windows-latest'
+        id: build-export-windows
+        run: |
+          $ErrorActionPreference = "Continue"
+          ./gradlew build 2>&1 | Tee-Object -FilePath gradle.log
+          if ($LASTEXITCODE -ne 0) {
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "Windows_ERROR=true"
+            $gradleLogContent = Get-Content -Path gradle.log
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "Windows_REASON<<EOF"
+            Add-Content -Path $env:GITHUB_OUTPUT -Value $gradleLogContent
+            Add-Content -Path $env:GITHUB_OUTPUT -Value "EOF"
+          }
+        shell: pwsh
 
-      - name: Execute Gradle build
-        run: ./gradlew build
 
   test:
     name: Test
@@ -68,16 +103,17 @@ jobs:
         with:
           distribution: temurin
           java-version: 16
-          cache: 'gradle'
-
+          cache: gradle
       - name: Execute Gradle test
         run: ./gradlew test
-
   doclint:
     name: Doclint
     if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
     needs: setup
+    outputs:
+      ERROR: ${{ steps.doclint-summary.outputs.ERROR }}
+      REASON: ${{ steps.doclint-summary.outputs.REASON }}
     steps:
       - name: Restore current directory
         uses: alehechka/download-tartifact@v2
@@ -87,42 +123,45 @@ jobs:
         with:
           distribution: temurin
           java-version: 16
-          cache: 'gradle'
-
+          cache: gradle
       - name: Execute Gradle javadoc
-        run: javadoc -Xdoclint:all -sourcepath src/main/java -subpackages fr -d doc/ > doclint.log 2> doclint.err
-        continue-on-error: true
+        run: javadoc -Xdoclint:all -sourcepath src/main/java -subpackages fr -d doc/ >
+          doclint.log 2> doclint.err || true
       - run: cat doclint.log
         if: always()
       - run: cat doclint.err
         if: always()
-
-
       - name: Check for doclint errors
         id: doclint-errors
         run: |
           if grep -q "error:" doclint.err; then
-            echo "::set-output name=error::true"
+            echo "ERROR=true" >> "$GITHUB_OUTPUT"
           fi
       - name: Check for doclint warnings
         id: doclint-warnings
         run: |
           if grep -q "warning:" doclint.err; then
-            echo "::set-output name=warning::true"
+            echo "ERROR=true" >> "$GITHUB_OUTPUT"
           fi
-
-
       - name: Comment on PR
-        if: steps.doclint-errors.outputs.error == 'true' || steps.doclint-warnings.outputs.warning == 'true'
+        if: steps.doclint-errors.outputs.ERROR == 'true' ||
+          steps.doclint-warnings.outputs.ERROR == 'true'
         uses: actions/github-script@v7
+        id: doclint-summary
         with:
           script: |
             console.log('DocLint found errors or warnings, parsing log...');
+
             const fs = require('fs');
+
             const doclintLog = fs.readFileSync('doclint.err', 'utf8');
+
             const errors = doclintLog.split('\n').filter(line => line.includes('error:') || line.includes('warning:'));
+
             const regex = /(.*\.java):(\d+): (error|warning): (.*)/;
+
             let comments = [];
+
             for (const error of errors) {
               console.log(`DocLint not parsed: ${error}`);
               const match = error.match(regex);
@@ -147,8 +186,21 @@ jobs:
                   line: parseInt(line),
                   body: `[${type}] ${message.replace(/(@\w+)/g, '`$1`')}`
                 });
+                if (type == 'error') {
+                  core.error({
+                    file: file,
+                    line: line,
+                    title: message
+                  });
+                } else {
+                  core.warning({
+                    file: file,
+                    line: line,
+                    title: message
+                  });
               }
             }
+
             if (context.payload.pull_request) {
               github.rest.pulls.createReview({
                 owner: context.repo.owner,
@@ -159,8 +211,10 @@ jobs:
                 comments: comments
               });
             }
-            fs.writeFileSync(process.env.GITHUB_STEP_SUMMARY, comments.map(comment => `* ${comment.path}:${comment.line} - ${comment.body}`).join('\n'));
 
+            core.setOutput('ERROR', 'true');
+
+            core.setOutput('REASON', comments.map(comment => `${comment.path}:${comment.line} - ${comment.body}`).join('\n'));
   gendoc:
     name: Generate documentation
     if: needs.doclint.result == 'success' && github.event_name == 'pull_request'
@@ -179,54 +233,164 @@ jobs:
           java-version: 16
           target-folder: doc
           project: gradle
-
   dirlint:
     name: Directory lint
     if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
     needs: setup
+    outputs:
+      SRC_FAILED: ${{ steps.dircheck.outputs.SRC_FAILED }}
+      SRC_FILES: ${{ steps.dircheck.outputs.SRC_FILES }}
+      SRC_FR_FAILED: ${{ steps.dircheck.outputs.SRC_FR_FAILED }}
+      SRC_FR_FILES: ${{ steps.dircheck.outputs.SRC_FR_FILES }}
     steps:
       - name: Restore current directory
         uses: alehechka/download-tartifact@v2
         with:
           name: ci-setup
-      - name: Check for package structe
-        run: |
-          if [ -e src/main/java/*.java ] && [ -e src/test/java/fr/*.java ]; then
-            echo "::set-output name=error::true"
-            exit 1
-          fi
-
-  prReview:
-    name: Approve or deny PR
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    needs: [ doclint, dirlint ]
-    steps:
-      - name: Restore current directory
-        uses: alehechka/download-tartifact@v2
-        with:
-          name: ci-setup
-      - name: Check for errors
-        id: check
-        run: |
-          if [ -e doclint.err ] || [ -e doclint.log ]; then
-            echo "::set-output name=error::true"
-          fi
-      - name: Deny PR
-        if: steps.check.outputs.error == 'true'
+      - name: Check for package structure
+        id: dircheck
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
+
+            const path = require('path');
+
+
+            if (fs.existsSync('src/main/java')) {
+              const files = fs.readdirSync('src/main/java').filter(file => path.extname(file) === '.java');
+              if (files.length > 0) {
+                process.env.SRC_FAILED = 'true';
+                process.env.SRC_FILES = files.join(', ');
+                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${files.join('\n')}\n`);
+                core.setOutput('SRC_FAILED', 'true');
+                core.setOutput('SRC_FILES', files.join('\n'));
+                for (const file of files) {
+                  console.error({
+                    file: file,
+                    title: 'File in root package'
+                  });
+                }
+              } else {
+                core.setOutput('SRC_FAILED', 'false');
+              }
+            }
+
+            if (fs.existsSync('src/main/java/fr')) {
+              const files = fs.readdirSync('src/main/java/fr').filter(file => path.extname(file) === '.java');
+              if (files.length > 0) {
+                process.env.SRC_FR_FAILED = 'true';
+                process.env.SRC_FR_FILES = files.join(', ');
+                fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${files.join('\n')}\n`);
+                core.setOutput('SRC_FR_FAILED', 'true');
+                core.setOutput('SRC_FR_FILES', files.join('\n'));
+                for (const file of files) {
+                  console.error({
+                    file: file,
+                    title: 'File in fr package'
+                  });
+                }
+              } else {
+                core.setOutput('SRC_FR_FAILED', 'false');
+              }
+            }
+  prReview:
+    name: Approve or deny PR
+    if: github.event_name == 'pull_request' && always()
+    runs-on: ubuntu-latest
+    needs:
+      - doclint
+      - dirlint
+      - build
+    steps:
+      - name: Restore current directory
+        uses: alehechka/download-tartifact@v2
+        with:
+          name: ci-setup
+      - name: Deny PR
+        if: needs.doclint.outputs.ERROR == 'true' || needs.dirlint.outputs.SRC_FAILED ==
+          'true' || needs.dirlint.outputs.SRC_FR_FAILED == 'true' || needs.build.outputs.LINUX_ERROR == 'true'
+            || needs.build.outputs.MACOS_ERROR == 'true' || needs.build.outputs.WINDOWS_ERROR == 'true'
+        uses: actions/github-script@v7
+        env:
+          DOCLINT_ERROR: ${{needs.doclint.outputs.ERROR}}
+          DOCLINT_REASON: ${{needs.doclint.outputs.REASON}}
+          DIRLINT_SRC_FAILED: ${{needs.dirlint.outputs.SRC_FAILED}}
+          DIRLINT_SRC_FILES: ${{needs.dirlint.outputs.SRC_FILES}}
+          DIRLINT_SRC_FR_FAILED: ${{needs.dirlint.outputs.SRC_FR_FAILED}}
+          DIRLINT_SRC_FR_FILES: ${{needs.dirlint.outputs.SRC_FR_FILES}}
+          LINUX_GRADLE_ERROR: ${{needs.build.outputs.LINUX_ERROR}}
+          LINUX_GRADLE_REASON: ${{needs.build.outputs.LINUX_REASON}}
+          MACOS_GRADLE_ERROR: ${{needs.build.outputs.MACOS_ERROR}}
+          MACOS_GRADLE_REASON: ${{needs.build.outputs.MACOS_REASON}}
+          WINDOWS_GRADLE_ERROR: ${{needs.build.outputs.WINDOWS_ERROR}}
+          WINDOWS_GRADLE_REASON: ${{needs.build.outputs.WINDOWS_REASON}}
+        with:
+          script: |
+            console.log(process.env.DOCLINT_ERROR);
+            console.log(process.env.DOCLINT_REASON);
+            console.log(process.env.DIRLINT_SRC_FAILED);
+            console.log(process.env.DIRLINT_SRC_FILES);
+            console.log(process.env.DIRLINT_SRC_FR_FAILED);
+            console.log(process.env.DIRLINT_SRC_FR_FILES);
+            console.log(process.env.LINUX_GRADLE_ERROR);
+            console.log(process.env.LINUX_GRADLE_REASON);
+            console.log(process.env.MACOS_GRADLE_ERROR);
+            console.log(process.env.MACOS_GRADLE_REASON);
+            console.log(process.env.WINDOWS_GRADLE_ERROR);
+            console.log(process.env.WINDOWS_GRADLE_REASON);
+            console.log(process.env);
+            
+            let body = 'There are errors in the code, please fix them:'
+            if (`${{needs.doclint.outputs.ERROR}}` == 'true') {
+              body += `\n<details><summary>There are errors in the documentation</summary>\n<p>${process.env.DOCLINT_REASON}</p></details>`
+              console.log(process.env.DOCLINT_ERROR);
+              console.log(process.env.DOCLINT_REASON);
+              console.log(body);
+            }
+            if (`${{needs.dirlint.outputs.SRC_FAILED}}` == 'true') {
+              body += `\n<details><summary>There are files in the root package, please move them to a package</summary>\n<p>${process.env.DIRLINT_SRC_FILES}</p></details>`
+              console.log(process.env.DIRLINT_SRC_FAILED);
+              console.log(process.env.DIRLINT_SRC_FILES);
+              console.log(body);
+            }
+            if (`${{needs.dirlint.outputs.SRC_FR_FAILED}}` == 'true') {
+              body += `\n<details><summary>There are files in the fr package, please move them to a package</summary>\n<p>${process.env.DIRLINT_SRC_FR_FILES}</p></details>`
+              console.log(process.env.DIRLINT_SRC_FR_FAILED);
+              console.log(process.env.DIRLINT_SRC_FR_FILES);
+              console.log(body);
+            }
+            if (`${{needs.build.outputs.LINUX_GRADLE_ERROR}}` == 'true') {
+              body += `\n<details><summary>There are errors in the Linux build</summary>\n<p>${process.env.LINUX_GRADLE_REASON}</p></details>`
+              console.log(process.env.LINUX_GRADLE_ERROR);
+              console.log(process.env.LINUX_GRADLE_REASON);
+              console.log(body);
+            }
+            if (`${{needs.build.outputs.MACOS_GRADLE_ERROR}}` == 'true') {
+              body += `\n<details><summary>There are errors in the MacOS build</summary>\n<p>${process.env.MACOS_GRADLE_REASON}</p></details>`
+              console.log(process.env.MACOS_GRADLE_ERROR);
+              console.log(process.env.MACOS_GRADLE_REASON);
+              console.log(body);
+            }
+            if (`${{needs.build.outputs.WINDOWS_GRADLE_ERROR}}` == 'true') {
+              body += `\n<details><summary>There are errors in the Windows build</summary>\n<p>${process.env.WINDOWS_GRADLE_REASON}</p></details>`
+              console.log(process.env.WINDOWS_GRADLE_ERROR);
+              console.log(process.env.WINDOWS_GRADLE_REASON);
+              console.log(body);
+            }
+            console.log(body);
             github.rest.pulls.createReview({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.payload.pull_request.number,
               event: 'REQUEST_CHANGES',
-              body: 'There are errors in the code, please fix them'
-            });
+              body: body
+            })
       - name: Approve PR
-        if: steps.check.outputs.error != 'true'
+        if: needs.doclint.outputs.ERROR != 'true' && needs.dirlint.outputs.SRC_FAILED !=
+          'true' && needs.dirlint.outputs.SRC_FR_FAILED != 'true' && needs.build.outputs.LINUX_ERROR != 'true'
+            && needs.build.outputs.MACOS_ERROR != 'true' && needs.build.outputs.WINDOWS_ERROR != 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -236,13 +400,14 @@ jobs:
               pull_number: context.payload.pull_request.number,
               event: 'APPROVE'
             });
-
   finalize:
-    # Remove artifact
     name: Finalize
     if: always()
     runs-on: ubuntu-latest
-    needs: [ test, gendoc, prReview ]
+    needs:
+      - test
+      - gendoc
+      - prReview
     steps:
       - name: Remove artifact
         uses: jimschubert/delete-artifacts-action@v1
