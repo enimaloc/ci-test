@@ -94,8 +94,12 @@ jobs:
                 const message = match[4];
                 const fileFs = fs.readFileSync(file, 'utf8');
                 console.log(`[${type}] ${message} at ${file}:${line}`);
-                if (fileFs.split('\n')[line - 1].includes('@SuppressWarnings("all")') || fileFs.split('\n')[line - 1].includes('@SuppressWarnings("doclint")')
-                  || fileFs.split('\n')[line].includes('@SuppressWarnings("all")') || fileFs.split('\n')[line ].includes('@SuppressWarnings("doclint")')) {
+                const srcLineBefore = fileFs.split('\n')[line - 1];
+                const srcLine = fileFs.split('\n')[line];
+                console.log(`Src line before: ${srcLineBefore}`);
+                console.log(`Src line       : ${srcLine}`);
+                if (srcLineBefore.includes('@SuppressWarnings("all")') || srcLineBefore.includes('@SuppressWarnings("doclint")')
+                  || srcLine.includes('@SuppressWarnings("all")') || srcLine.includes('@SuppressWarnings("doclint")')) {
                     console.log(`[${type}] ${message} at ${file}:${line} is suppressed, skipping...`);
                     continue;
                 }
