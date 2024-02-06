@@ -48,8 +48,6 @@ public class Grille {
 
     /**
      * Récupérer la difficulté de la grille
-     *
-     * @return la difficulté de la grille
      */
     public Object getDifficulte() {
         return difficulte;
@@ -58,7 +56,7 @@ public class Grille {
     /**
      * Récupérer les iles de la grille
      *
-     * @return les iles de la grille
+     * @retrn les iles de la grille
      */
     public List<Object> getIles() {
         return iles;
