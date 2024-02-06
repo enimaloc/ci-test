@@ -268,7 +268,7 @@ jobs:
             }
   prReview:
     name: Approve or deny PR
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && always()
     runs-on: ubuntu-latest
     needs:
       - doclint
