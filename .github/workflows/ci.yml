@@ -290,15 +290,15 @@ jobs:
             console.log(process.env.DIRLINT_SRC_FR_FAILED);
             console.log(process.env.DIRLINT_SRC_FR_FILES);
             
-            let body = 'There are errors in the code, please fix them:\n'
+            let body = 'There are errors in the code, please fix them:'
             if (process.env.DOCLINT_ERROR == 'true') {
-              body += `- Doclint found errors or warnings:\n ${process.env.DOCLINT_REASON} \n`
+              body = `${body}\n- Doclint found errors or warnings:\n ${process.env.DOCLINT_REASON}`
             }
             if (process.env.DOCLINT_SRC_FAILED == 'true') {
-              body += `- There are files in the root package, please move them to a package\n ${process.env.DIRLINT_SRC_FILES} \n`
+              body = `${body}\n- There are files in the root package, please move them to a package\n ${process.env.DIRLINT_SRC_FILES}`
             }
             if (process.env.DOCLINT_SRC_FR_FAILED == 'true') {
-              body += `- There are files in the fr package, please move them to a package\n ${process.env.DIRLINT_SRC_FR_FILES} \n`
+              body = `${body}\n- There are files in the fr package, please move them to a package\n ${process.env.DIRLINT_SRC_FR_FILES}`
             }
             console.log(body);
             github.rest.pulls.createReview({
