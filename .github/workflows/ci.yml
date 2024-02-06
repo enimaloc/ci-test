@@ -1,3 +1,4 @@
+---
 name: Continuous Integration
 on:
   push:
@@ -6,7 +7,6 @@ on:
   pull_request:
     branches:
       - master
-
 jobs:
   setup:
     name: Setup CI
@@ -14,12 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 16
-          cache: 'gradle'
+          cache: gradle
       - name: Make Gradlew executable
         run: chmod +x gradlew
       - name: Saving current directory
@@ -27,13 +27,15 @@ jobs:
         with:
           name: ci-setup
           path: .
-
   build:
     name: Build
     if: needs.setup.result == 'success'
     strategy:
       matrix:
-        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
         exclude:
           - os: ${{ github.event_name != 'pull_request' && 'macos-latest' || 'none' }}
           - os: ${{ github.event_name != 'pull_request' && 'windows-latest' || 'none' }}
@@ -48,11 +50,9 @@ jobs:
         with:
           distribution: temurin
           java-version: 16
-          cache: 'gradle'
-
+          cache: gradle
       - name: Execute Gradle build
         run: ./gradlew build
-
   test:
     name: Test
     if: needs.build.result == 'success'
@@ -67,19 +67,17 @@ jobs:
         with:
           distribution: temurin
           java-version: 16
-          cache: 'gradle'
-
+          cache: gradle
       - name: Execute Gradle test
         run: ./gradlew test
-
   doclint:
     name: Doclint
     if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
     needs: setup
     outputs:
-        ERROR: ${{ steps.doclint-summary.outputs.ERROR }}
-        REASON: ${{ steps.doclint-summary.outputs.REASON }}
+      ERROR: ${{ steps.doclint-summary.outputs.ERROR }}
+      REASON: ${{ steps.doclint-summary.outputs.REASON }}
     steps:
       - name: Restore current directory
         uses: alehechka/download-tartifact@v2
@@ -89,16 +87,14 @@ jobs:
         with:
           distribution: temurin
           java-version: 16
-          cache: 'gradle'
-
+          cache: gradle
       - name: Execute Gradle javadoc
-        run: javadoc -Xdoclint:all -sourcepath src/main/java -subpackages fr -d doc/ > doclint.log 2> doclint.err || true
+        run: javadoc -Xdoclint:all -sourcepath src/main/java -subpackages fr -d doc/ >
+          doclint.log 2> doclint.err || true
       - run: cat doclint.log
         if: always()
       - run: cat doclint.err
         if: always()
-
-
       - name: Check for doclint errors
         id: doclint-errors
         run: |
@@ -111,20 +107,25 @@ jobs:
           if grep -q "warning:" doclint.err; then
             echo "ERROR=true" >> "$GITHUB_OUTPUT"
           fi
-
-
       - name: Comment on PR
-        if: steps.doclint-errors.outputs.ERROR == 'true' || steps.doclint-warnings.outputs.ERROR == 'true'
+        if: steps.doclint-errors.outputs.ERROR == 'true' ||
+          steps.doclint-warnings.outputs.ERROR == 'true'
         uses: actions/github-script@v7
         id: doclint-summary
         with:
-          script: |
+          script: >
             console.log('DocLint found errors or warnings, parsing log...');
+
             const fs = require('fs');
+
             const doclintLog = fs.readFileSync('doclint.err', 'utf8');
+
             const errors = doclintLog.split('\n').filter(line => line.includes('error:') || line.includes('warning:'));
+
             const regex = /(.*\.java):(\d+): (error|warning): (.*)/;
+
             let comments = [];
+
             for (const error of errors) {
               console.log(`DocLint not parsed: ${error}`);
               const match = error.match(regex);
@@ -163,6 +164,7 @@ jobs:
                   });
               }
             }
+
             if (context.payload.pull_request) {
               github.rest.pulls.createReview({
                 owner: context.repo.owner,
@@ -173,9 +175,10 @@ jobs:
                 comments: comments
               });
             }
-            core.setOutput('ERROR', 'true');
-            core.setOutput('REASON', comments.map(comment => `${comment.path}:${comment.line} - ${comment.body}`).join('\n'));
 
+            core.setOutput('ERROR', 'true');
+
+            core.setOutput('REASON', comments.map(comment => `${comment.path}:${comment.line} - ${comment.body}`).join('\n'));
   gendoc:
     name: Generate documentation
     if: needs.doclint.result == 'success' && github.event_name == 'pull_request'
@@ -194,17 +197,16 @@ jobs:
           java-version: 16
           target-folder: doc
           project: gradle
-
   dirlint:
     name: Directory lint
     if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
     needs: setup
     outputs:
-        SRC_FAILED: ${{ steps.dircheck.outputs.SRC_FAILED }}
-        SRC_FILES: ${{ steps.dircheck.outputs.SRC_FILES }}
-        SRC_FR_FAILED: ${{ steps.dircheck.outputs.SRC_FR_FAILED }}
-        SRC_FR_FILES: ${{ steps.dircheck.outputs.SRC_FR_FILES }}
+      SRC_FAILED: ${{ steps.dircheck.outputs.SRC_FAILED }}
+      SRC_FILES: ${{ steps.dircheck.outputs.SRC_FILES }}
+      SRC_FR_FAILED: ${{ steps.dircheck.outputs.SRC_FR_FAILED }}
+      SRC_FR_FILES: ${{ steps.dircheck.outputs.SRC_FR_FILES }}
     steps:
       - name: Restore current directory
         uses: alehechka/download-tartifact@v2
@@ -214,10 +216,12 @@ jobs:
         id: dircheck
         uses: actions/github-script@v7
         with:
-          script: |
+          script: >
             const fs = require('fs');
+
             const path = require('path');
-            
+
+
             if (fs.existsSync('src/main/java')) {
               const files = fs.readdirSync('src/main/java').filter(file => path.extname(file) === '.java');
               if (files.length > 0) {
@@ -236,6 +240,7 @@ jobs:
                 core.setOutput('SRC_FAILED', 'false');
               }
             }
+
             if (fs.existsSync('src/main/java/fr')) {
               const files = fs.readdirSync('src/main/java/fr').filter(file => path.extname(file) === '.java');
               if (files.length > 0) {
@@ -253,29 +258,31 @@ jobs:
               } else {
                 core.setOutput('SRC_FR_FAILED', 'false');
               }
-            }          
-
+            }
   prReview:
     name: Approve or deny PR
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    needs: [ doclint, dirlint ]
+    needs:
+      - doclint
+      - dirlint
     steps:
       - name: Restore current directory
         uses: alehechka/download-tartifact@v2
         with:
           name: ci-setup
       - name: Deny PR
-        if: needs.doclint.outputs.ERROR == 'true' || needs.dirlint.outputs.SRC_FAILED == 'true' || needs.dirlint.outputs.SRC_FR_FAILED == 'true'
+        if: needs.doclint.outputs.ERROR == 'true' || needs.dirlint.outputs.SRC_FAILED ==
+          'true' || needs.dirlint.outputs.SRC_FR_FAILED == 'true'
         uses: actions/github-script@v7
         with:
           script: |
             console.log(core.getInput('needs.dirlint.outputs.SRC_FILES'));
             console.log(${{ needs.dirlint.outputs.SRC_FILES }});
             console.log(core.getInput('needs.dirlint.outputs'));
-#            console.log(${{ needs.dirlint.outputs }});
       - name: Approve PR
-        if: needs.doclint.outputs.ERROR != 'true' && needs.dirlint.outputs.SRC_FAILED != 'true' && needs.dirlint.outputs.SRC_FR_FAILED != 'true'
+        if: needs.doclint.outputs.ERROR != 'true' && needs.dirlint.outputs.SRC_FAILED !=
+          'true' && needs.dirlint.outputs.SRC_FR_FAILED != 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -285,13 +292,14 @@ jobs:
               pull_number: context.payload.pull_request.number,
               event: 'APPROVE'
             });
-
   finalize:
-    # Remove artifact
     name: Finalize
     if: always()
     runs-on: ubuntu-latest
-    needs: [ test, gendoc, prReview ]
+    needs:
+      - test
+      - gendoc
+      - prReview
     steps:
       - name: Remove artifact
         uses: jimschubert/delete-artifacts-action@v1
