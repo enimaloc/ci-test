@@ -99,12 +99,6 @@ jobs:
                     console.log(`[${type}] ${message} at ${file}:${line} is suppressed, skipping...`);
                     continue;
                 }
-                  comments.push({
-                    path: file,
-                    line: parseInt(line),
-                    body: `[${type}] ${message.replace(/(@\w+)/g, '`$1`')}`
-                  });
-                }
                 comments.push({
                   path: file,
                   line: parseInt(line),
