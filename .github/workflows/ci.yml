@@ -65,7 +65,7 @@ jobs:
         run: |
           set +e
           (./gradlew build 2>&1) | tee gradle.log
-          exit=$?
+          exit=$PIPESTATUS[0]
           if [ $exit -ne 0 ]; then
             echo "${RUNNER_OS}_ERROR=true" >> "$GITHUB_OUTPUT"
             {
