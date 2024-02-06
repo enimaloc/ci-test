@@ -266,6 +266,7 @@ jobs:
         with:
           name: ci-setup
       - name: Deny PR
+        debug: true
         if: needs.doclint.outputs.ERROR == 'true' || needs.dirlint.outputs.SRC_FAILED == 'true' || needs.dirlint.outputs.SRC_FR_FAILED == 'true'
         uses: actions/github-script@v7
         with:
