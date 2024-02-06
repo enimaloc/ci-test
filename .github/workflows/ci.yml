@@ -12,7 +12,7 @@ jobs:
     if: github.event_name == 'pull_request' || github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
       - uses: actions/setup-java@v4
@@ -40,6 +40,7 @@ jobs:
           - os: ${{ (github.event_name != 'pull_request' || github.repository != 'projet-gl2/Hashimiste') && 'macos-latest' || 'none' }}
           - os: ${{ github.event_name != 'pull_request' && 'windows-latest' || 'none' }}
     runs-on: ${{ matrix.os }}
+    allow-failure: true
     needs: setup
     outputs:
         LINUX_ERROR: ${{ steps.build-export-unix.outputs.Linux_ERROR }}
@@ -65,7 +66,8 @@ jobs:
         run: |
           set +e
           (./gradlew build 2>&1) | tee gradle.log
-          if [ $? -ne 0 ]; then
+          exit=$?
+          if [ $exit -ne 0 ]; then
             echo "${RUNNER_OS}_ERROR=true" >> "$GITHUB_OUTPUT"
             {
               echo '${RUNNER_OS}_REASON<<EOF'
@@ -73,6 +75,7 @@ jobs:
               echo EOF
             } >> "$GITHUB_OUTPUT"
           fi
+          exit $exit
       - name: Execute Gradle build on Windows
         if: matrix.os == 'windows-latest'
         id: build-export-windows
@@ -369,19 +372,19 @@ jobs:
               console.log(body);
             }
             if (process.env.LINUX_GRADLE_ERROR == 'true') {
-              body += `\n<details><summary>There are errors in the Linux build</summary>\n<p>${process.env.LINUX_GRADLE_REASON}</p></details>`
+              body += `\n<details><summary>There are errors in the Linux build</summary>\n`+'```'+`\n${process.env.LINUX_GRADLE_REASON}`+'```</details>'
               console.log(process.env.LINUX_GRADLE_ERROR);
               console.log(process.env.LINUX_GRADLE_REASON);
               console.log(body);
             }
             if (process.env.MACOS_GRADLE_ERROR == 'true') {
-              body += `\n<details><summary>There are errors in the MacOS build</summary>\n<p>${process.env.MACOS_GRADLE_REASON}</p></details>`
+              body += `\n<details><summary>There are errors in the MacOS build</summary>\n`+'```'+`\n${process.env.MACOS_GRADLE_REASON}\n`+'```</details>'
               console.log(process.env.MACOS_GRADLE_ERROR);
               console.log(process.env.MACOS_GRADLE_REASON);
               console.log(body);
             }
             if (process.env.WINDOWS_GRADLE_ERROR == 'true') {
-              body += `\n<details><summary>There are errors in the Windows build</summary>\n\`\`\`\n${process.env.WINDOWS_GRADLE_REASON}\n\`\`\`</details>`
+              body += `\n<details><summary>There are errors in the Windows build</summary>\n`+'```'+`\n${process.env.WINDOWS_GRADLE_REASON}\n`+'```</details>'
               console.log(process.env.WINDOWS_GRADLE_ERROR);
               console.log(process.env.WINDOWS_GRADLE_REASON);
               console.log(body);
