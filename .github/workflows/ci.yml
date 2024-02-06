@@ -80,6 +80,7 @@ jobs:
             const doclintLog = fs.readFileSync('doclint.err', 'utf8');
             const errors = doclintLog.split('\n').filter(line => line.includes('error:') || line.includes('warning:'));
             const regex = /(.*\.java):(\d+): (error|warning): (.*)/;
+            let comments = [];
             for (const error of errors) {
               console.log(`DocLint not parsed: ${error}`);
               const match = error.match(regex);
@@ -89,17 +90,21 @@ jobs:
                 const type = match[3];
                 const message = match[4];
                 console.log(`[${type}] ${message} at ${file}:${line}`);
-                github.action.createReviewComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  pull_number: context.payload.pull_request.number,
-                  body: `[${type}] ${message}`,
-                  commit_id: context.payload.pull_request.head.sha,
+                comments.push({
                   path: file,
-                  position: line
+                  line: parseInt(line),
+                  body: `[${type}] ${message}`
                 });
               }
             }
+            github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              event: 'REQUEST_CHANGES',
+              body: 'DocLint found errors or warnings',
+              comments: comments
+            });
   finalize:
     # Remove artifact
     name: Finalize
