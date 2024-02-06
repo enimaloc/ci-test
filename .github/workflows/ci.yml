@@ -40,6 +40,9 @@ jobs:
           - os: ${{ github.event_name != 'pull_request' && 'windows-latest' || 'none' }}
     runs-on: ${{ matrix.os }}
     needs: setup
+    outputs:
+        ERROR: ${{ steps.build-export.outputs.ERROR }}
+        REASON: ${{ steps.build-export.outputs.REASON }}
     steps:
       - name: Restore current directory
         uses: alehechka/download-tartifact@v2
@@ -51,7 +54,12 @@ jobs:
           java-version: 16
           cache: gradle
       - name: Execute Gradle build
-        run: ./gradlew build
+        run: ./gradlew build 2>&1 | tee gradle.log
+      - name: Export logs for later use
+        id: build-export
+        run: |
+          echo "ERROR=$?" >> "$GITHUB_OUTPUT"
+          echo "REASON=$(cat gradle.log)" >> "$GITHUB_OUTPUT"
   test:
     name: Test
     if: needs.build.result == 'success'
@@ -111,8 +119,6 @@ jobs:
           steps.doclint-warnings.outputs.ERROR == 'true'
         uses: actions/github-script@v7
         id: doclint-summary
-        env:
-          ACTIONS_STEP_DEBUG: true
         with:
           script: |
             console.log('DocLint found errors or warnings, parsing log...');
@@ -151,7 +157,7 @@ jobs:
                   line: parseInt(line),
                   body: `[${type}] ${message.replace(/(@\w+)/g, '`$1`')}`
                 });
-                if (type === 'error') {
+                if (type == 'error') {
                   core.error({
                     file: file,
                     line: line,
@@ -267,6 +273,7 @@ jobs:
     needs:
       - doclint
       - dirlint
+      - build
     steps:
       - name: Restore current directory
         uses: alehechka/download-tartifact@v2
@@ -274,7 +281,7 @@ jobs:
           name: ci-setup
       - name: Deny PR
         if: needs.doclint.outputs.ERROR == 'true' || needs.dirlint.outputs.SRC_FAILED ==
-          'true' || needs.dirlint.outputs.SRC_FR_FAILED == 'true'
+          'true' || needs.dirlint.outputs.SRC_FR_FAILED == 'true' || needs.build.outputs.ERROR != '0'
         uses: actions/github-script@v7
         env:
           DOCLINT_ERROR: ${{needs.doclint.outputs.ERROR}}
@@ -283,6 +290,8 @@ jobs:
           DIRLINT_SRC_FILES: ${{needs.dirlint.outputs.SRC_FILES}}
           DIRLINT_SRC_FR_FAILED: ${{needs.dirlint.outputs.SRC_FR_FAILED}}
           DIRLINT_SRC_FR_FILES: ${{needs.dirlint.outputs.SRC_FR_FILES}}
+          GRADLE_ERROR: ${{needs.build.outputs.ERROR}}
+          GRADLE_REASON: ${{needs.build.outputs.REASON}}
         with:
           script: |
             console.log(process.env.DOCLINT_ERROR);
@@ -291,25 +300,33 @@ jobs:
             console.log(process.env.DIRLINT_SRC_FILES);
             console.log(process.env.DIRLINT_SRC_FR_FAILED);
             console.log(process.env.DIRLINT_SRC_FR_FILES);
+            console.log(process.env.GRADLE_ERROR);
+            console.log(process.env.GRADLE_REASON);
             console.log(process.env);
             
             let body = 'There are errors in the code, please fix them:'
             if (`${{needs.doclint.outputs.ERROR}}` == 'true') {
-              body += `\n- Doclint found errors or warnings:\n ${process.env.DOCLINT_REASON}`
+              body += `\n<details><summary>There are errors in the documentation</summary>\n<p>${process.env.DOCLINT_REASON}</p></details>`
               console.log(process.env.DOCLINT_ERROR);
               console.log(process.env.DOCLINT_REASON);
               console.log(body);
             }
             if (`${{needs.dirlint.outputs.SRC_FAILED}}` == 'true') {
-              body += `\n- There are files in the root package, please move them to a package\n ${process.env.DIRLINT_SRC_FILES}`
+              body += `\n<details><summary>There are files in the root package, please move them to a package</summary>\n<p>${process.env.DIRLINT_SRC_FILES}</p></details>`
               console.log(process.env.DIRLINT_SRC_FAILED);
               console.log(process.env.DIRLINT_SRC_FILES);
               console.log(body);
             }
             if (`${{needs.dirlint.outputs.SRC_FR_FAILED}}` == 'true') {
-              body += `\n- There are files in the fr package, please move them to a package\n ${process.env.DIRLINT_SRC_FR_FILES}`
+              body += `\n<details><summary>There are files in the fr package, please move them to a package</summary>\n<p>${process.env.DIRLINT_SRC_FR_FILES}</p></details>`
               console.log(process.env.DIRLINT_SRC_FR_FAILED);
               console.log(process.env.DIRLINT_SRC_FR_FILES);
+              console.log(body);
+            }
+            if (`${{needs.build.outputs.ERROR}}` != '0') {
+              body += `\n<details><summary>There are errors in the build</summary>\n<p>${process.env.GRADLE_REASON}</p></details>`
+              console.log(process.env.GRADLE_ERROR);
+              console.log(process.env.GRADLE_REASON);
               console.log(body);
             }
             console.log(body);
