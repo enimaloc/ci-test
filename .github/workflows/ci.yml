@@ -197,6 +197,7 @@ jobs:
                     line: line,
                     title: message
                   });
+                }
               }
             }
 
@@ -342,13 +343,13 @@ jobs:
             console.log(process.env);
             
             let body = 'There are errors in the code, please fix them:'
-            if (`${{needs.doclint.outputs.ERROR}}` == 'true') {
+            if (process.env.DOCLINT_ERROR == 'true') {
               body += `\n<details><summary>There are errors in the documentation</summary>\n<p>${process.env.DOCLINT_REASON}</p></details>`
               console.log(process.env.DOCLINT_ERROR);
               console.log(process.env.DOCLINT_REASON);
               console.log(body);
             }
-            if (`${{needs.dirlint.outputs.SRC_FAILED}}` == 'true') {
+            if (process.env.DIRLINT_SRC_FAILED == 'true') {
               body += `\n<details><summary>There are files in the root package, please move them to a package</summary>\n<p>${process.env.DIRLINT_SRC_FILES}</p></details>`
               console.log(process.env.DIRLINT_SRC_FAILED);
               console.log(process.env.DIRLINT_SRC_FILES);
@@ -360,19 +361,19 @@ jobs:
               console.log(process.env.DIRLINT_SRC_FR_FILES);
               console.log(body);
             }
-            if (`${{needs.build.outputs.LINUX_GRADLE_ERROR}}` == 'true') {
+            if (process.env.LINUX_GRADLE_ERROR == 'true') {
               body += `\n<details><summary>There are errors in the Linux build</summary>\n<p>${process.env.LINUX_GRADLE_REASON}</p></details>`
               console.log(process.env.LINUX_GRADLE_ERROR);
               console.log(process.env.LINUX_GRADLE_REASON);
               console.log(body);
             }
-            if (`${{needs.build.outputs.MACOS_GRADLE_ERROR}}` == 'true') {
+            if (process.env.MACOS_GRADLE_ERROR == 'true') {
               body += `\n<details><summary>There are errors in the MacOS build</summary>\n<p>${process.env.MACOS_GRADLE_REASON}</p></details>`
               console.log(process.env.MACOS_GRADLE_ERROR);
               console.log(process.env.MACOS_GRADLE_REASON);
               console.log(body);
             }
-            if (`${{needs.build.outputs.WINDOWS_GRADLE_ERROR}}` == 'true') {
+            if (process.env.WINDOWS_GRADLE_ERROR == 'true') {
               body += `\n<details><summary>There are errors in the Windows build</summary>\n<p>${process.env.WINDOWS_GRADLE_REASON}</p></details>`
               console.log(process.env.WINDOWS_GRADLE_ERROR);
               console.log(process.env.WINDOWS_GRADLE_REASON);
