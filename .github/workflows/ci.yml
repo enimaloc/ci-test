@@ -23,7 +23,7 @@ jobs:
 
   build:
     name: Build
-    if: needs.setup.result == 'success' && (env.RUN == null || contains(env.RUN, '|build|'))
+    if: needs.setup.result == 'success'
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest, windows-latest ]
@@ -41,7 +41,7 @@ jobs:
 
   doclint:
     name: Doclint
-    if: needs.setup.result == 'success' && (env.RUN == null || contains(env.RUN, '|doclint|'))
+    if: needs.setup.result == 'success'
     runs-on: ubuntu-latest
     needs: setup
     steps:
