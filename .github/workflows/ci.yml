@@ -57,7 +57,7 @@ jobs:
       - name: Execute Gradle build
         id: build-export
         run: | 
-        ./gradlew build 2>&1 | tee gradle.log
+        (./gradlew build 2>&1) | tee gradle.log
         if [ $? -ne 0 ]; then
           echo "ERROR=true" >> "$GITHUB_OUTPUT"
           {
