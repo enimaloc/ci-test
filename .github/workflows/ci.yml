@@ -40,7 +40,7 @@ jobs:
           - os: ${{ (github.event_name != 'pull_request' || github.repository != 'projet-gl2/Hashimiste') && 'macos-latest' || 'none' }}
           - os: ${{ github.event_name != 'pull_request' && 'windows-latest' || 'none' }}
     runs-on: ${{ matrix.os }}
-    allow-failure: true
+    continue-on-error: true
     needs: setup
     outputs:
         LINUX_ERROR: ${{ steps.build-export-unix.outputs.Linux_ERROR }}
