@@ -191,7 +191,7 @@ jobs:
           name: ci-setup
       - name: Check for package structe
         run: |
-          if [ -e src/main/java/*.java ] && [ -e src/test/java/fr/*.java ]; then
+          if [ -e src/main/java/*.java ] || [ -e src/test/java/fr/*.java ]; then
             echo "::set-output name=error::true"
             exit 1
           fi
