@@ -4,9 +4,14 @@ on: [ push, pull_request ]
 jobs:
   setup:
     name: Setup CI
-    if: github.event_name == 'pull_request' || github.ref != 'refs/heads/master'
+    if: github.event_name == 'pull_request' || endsWith(github.ref, 'master')
     runs-on: ubuntu-latest
     steps:
+      # Print github context
+      - name: Print GitHub context
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+        run: echo "$GITHUB_CONTEXT"
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
