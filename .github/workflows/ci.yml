@@ -53,13 +53,19 @@ jobs:
           distribution: temurin
           java-version: 16
           cache: gradle
+      - run: env
       - name: Execute Gradle build
-        run: ./gradlew build 2>&1 | tee gradle.log
-      - name: Export logs for later use
         id: build-export
-        run: |
-          echo "ERROR=$?" >> "$GITHUB_OUTPUT"
-          echo "REASON=$(cat gradle.log)" >> "$GITHUB_OUTPUT"
+        run: | 
+        ./gradlew build 2>&1 | tee gradle.log
+        if [ $? -ne 0 ]; then
+          echo "ERROR=true" >> "$GITHUB_OUTPUT"
+          {
+            echo 'REASON<<EOF'
+            cat gradle.log
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+        fi
   test:
     name: Test
     if: needs.build.result == 'success'
