@@ -35,8 +35,8 @@ public class Grille {
     
      
      
-     
-     
+
+    @SuppressWarnings("javadoc")
     public Grille(Object difficulte) {
         this(difficulte, new ArrayList<>());
     }
