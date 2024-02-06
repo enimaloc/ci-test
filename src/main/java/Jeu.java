@@ -2,7 +2,7 @@
  * La classe Jeu correspond au jeu lorsqu'on est face à l'écran de jeu avec les boutons ainsi que la grille, il y divers boutons (retour arrière, poser un checkpoint, aide, etc)
  **/
 public class Jeu {
-    private ArrayList<Boutons> listeBoutons = new ArrayList<Boutons>();
+//    private ArrayList<Boutons> listeBoutons = new ArrayList<Boutons>();
     // grille;
     // grilleComplete;
 

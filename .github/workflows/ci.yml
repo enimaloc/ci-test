@@ -1,0 +1,113 @@
+name: Continuous Integration
+on: [ push, pull_request ]
+
+jobs:
+  setup:
+    name: Setup CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 16
+      - name: Make Gradlew executable
+        run: chmod +x gradlew
+      - name: Saving current directory
+        uses: alehechka/upload-tartifact@v2
+        with:
+          name: ci-setup
+          path: .
+
+  build:
+    name: Build
+    if: needs.setup.result == 'success' && (env.RUN == null || contains(env.RUN, '|build|'))
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    needs: setup
+    steps:
+      - name: Restore current directory
+        uses: alehechka/download-tartifact@v2
+        with:
+          name: ci-setup
+      - name: Make Gradlew executable
+        run: chmod +x gradlew
+      - name: Execute Gradle build
+        run: ./gradlew build
+
+  doclint:
+    name: Doclint
+    if: needs.setup.result == 'success' && (env.RUN == null || contains(env.RUN, '|doclint|'))
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Restore current directory
+        uses: alehechka/download-tartifact@v2
+        with:
+          name: ci-setup
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 16
+
+      - name: Execute Gradle javadoc
+        run: javadoc -Xdoclint:all -sourcepath src/main/java -subpackages fr -d doc/ > doclint.log 2> doclint.err
+      - run: cat doclint.log
+      - run: cat doclint.err
+      - name: Check for doclint errors
+        id: doclint-errors
+        run: |
+          if grep -q "error:" doclint.err; then
+            echo "::set-output name=error::true"
+          fi
+      - name: Check for doclint warnings
+        id: doclint-warnings
+        run: |
+          if grep -q "warning:" doclint.err; then
+            echo "::set-output name=warning::true"
+          fi
+      - name: Comment on PR
+        if: steps.doclint-errors.outputs.error == 'true' || steps.doclint-warnings.outputs.warning == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('DocLint found errors or warnings, parsing log...');
+            const fs = require('fs');
+            const doclintLog = fs.readFileSync('doclint.err', 'utf8');
+            const errors = doclintLog.split('\n').filter(line => line.includes('error:') || line.includes('warning:'));
+            const regex = /(.*\.java):(\d+): (error|warning): (.*)/;
+            for (const error of errors) {
+              console.log(`DocLint not parsed: ${error}`);
+              const match = error.match(regex);
+              if (match) {
+                const file = match[1];
+                const line = match[2];
+                const type = match[3];
+                const message = match[4];
+                console.log(`[${type}] ${message} at ${file}:${line}`);
+                github.action.createReviewComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.payload.pull_request.number,
+                  body: `[${type}] ${message}`,
+                  commit_id: context.payload.pull_request.head.sha,
+                  path: file,
+                  position: line
+                });
+              }
+            }
+  finalize:
+    # Remove artifact
+    name: Finalize
+    if: always()
+    runs-on: ubuntu-latest
+    needs: [ build, doclint ]
+    steps:
+      - name: Remove artifact
+        uses: jimschubert/delete-artifacts-action@v1
+        with:
+          artifact_name: ci-setup
