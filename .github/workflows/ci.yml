@@ -283,12 +283,12 @@ jobs:
           DIRLINT_SRC_FR_FILES: ${{ needs.dirlint.outputs.SRC_FR_FILES }}
         with:
           script: |
-            console.log(${{ env.DOCLINT_ERROR }});
-            console.log(${{ env.DOCLINT_REASON }});
-            console.log(${{ env.DIRLINT_SRC_FAILED }});
-            console.log(${{ env.DIRLINT_SRC_FILES }});
-            console.log(${{ env.DIRLINT_SRC_FR_FAILED }});
-            console.log(${{ env.DIRLINT_SRC_FR_FILES }});
+            console.log(env.DOCLINT_ERROR);
+            console.log(env.DOCLINT_REASON);
+            console.log(env.DIRLINT_SRC_FAILED);
+            console.log(env.DIRLINT_SRC_FILES);
+            console.log(env.DIRLINT_SRC_FR_FAILED);
+            console.log(env.DIRLINT_SRC_FR_FILES);
             
             let body = 'There are errors in the code, please fix them:\n'
             if (env.DOCLINT_ERROR == 'true') {
