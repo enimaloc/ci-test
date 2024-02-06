@@ -111,6 +111,8 @@ jobs:
           steps.doclint-warnings.outputs.ERROR == 'true'
         uses: actions/github-script@v7
         id: doclint-summary
+        env:
+          ACTIONS_STEP_DEBUG: true
         with:
           script: |
             console.log('DocLint found errors or warnings, parsing log...');
