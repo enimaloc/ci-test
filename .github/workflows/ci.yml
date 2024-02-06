@@ -36,7 +36,7 @@ jobs:
           - macos-latest
           - windows-latest
         exclude:
-          - os: ${{ github.event_name != 'pull_request' && 'macos-latest' || 'none' }}
+          - os: ${{ (github.event_name != 'pull_request' || github.repository != 'projet-gl2/Hashimiste') && 'macos-latest' || 'none' }}
           - os: ${{ github.event_name != 'pull_request' && 'windows-latest' || 'none' }}
     runs-on: ${{ matrix.os }}
     needs: setup
@@ -292,16 +292,13 @@ jobs:
             
             let body = 'There are errors in the code, please fix them:\n'
             if (process.env.DOCLINT_ERROR == 'true') {
-              body += '- Doclint found errors or warnings\n'
-              body += process.env.DOCLINT_REASON
+              body += `- Doclint found errors or warnings:\n ${process.env.DOCLINT_REASON} \n`
             }
             if (process.env.DOCLINT_SRC_FAILED == 'true') {
-              body += '- There are files in the root package, please move them to a package\n'
-              body += process.env.DIRLINT_SRC_FILES
+              body += `- There are files in the root package, please move them to a package\n ${process.env.DIRLINT_SRC_FILES} \n`
             }
             if (process.env.DOCLINT_SRC_FR_FAILED == 'true') {
-              body += '- There are files in the fr package, please move them to a package\n'
-              body += process.env.DIRLINT_SRC_FR_FILES
+              body += `- There are files in the fr package, please move them to a package\n ${process.env.DIRLINT_SRC_FR_FILES} \n`
             }
             console.log(body);
             github.rest.pulls.createReview({
