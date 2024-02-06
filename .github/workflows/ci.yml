@@ -188,9 +188,18 @@ jobs:
         uses: alehechka/download-tartifact@v2
         with:
           name: ci-setup
-      - name: Check for package structe
+      - name: Check for package structure
         run: |
-          if [ -e src/main/java/*.java ] || [ -e src/test/java/fr/*.java ]; then
+          failed = false
+          if [ -e src/main/java/*.java ]; then
+            failed = true
+            echo $(ls src/main/java/*.java) > $GITHUB_STEP_SUMMARY
+          fi
+          if [ -e src/test/java/fr/*.java ]; then
+            failed = true
+            echo $(ls src/test/java/fr/*.java) > $GITHUB_STEP_SUMMARY
+          fi
+          if failed; then
             echo "::set-output name=error::true"
           fi
 
