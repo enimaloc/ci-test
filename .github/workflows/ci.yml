@@ -271,26 +271,6 @@ jobs:
         with:
           script: |
             console.log(core.getInput('needs.dirlint.outputs.SRC_FILES'));
-            let body = 'There are errors in the code, please fix them:\n';
-            if (core.getInput('needs.doclint.outputs.ERROR') == 'true') {
-              body += '- Doclint found errors or warnings\n';
-              body += needs.doclint.outputs.REASON');
-            }
-            if (core.getInput('needs.dirlint.outputs.SRC_FAILED') == 'true') {
-              body += '- There are files in the root package, please move them to a package\n';
-              body += core.getInput('needs.dirlint.outputs.SRC_FILES');
-            }
-            if (core.getInput('needs.dirlint.outputs.SRC_FR_FAILED') == 'true') {
-              body += '- There are files in the fr package, please move them to a package\n';
-              body += core.getInput('needs.dirlint.outputs.SRC_FR_FILES');
-            }
-            github.rest.pulls.createReview({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.payload.pull_request.number,
-              event: 'REQUEST_CHANGES',
-              body: body
-            });
       - name: Approve PR
         if: needs.doclint.outputs.ERROR != 'true' && needs.dirlint.outputs.SRC_FAILED != 'true' && needs.dirlint.outputs.SRC_FR_FAILED != 'true'
         uses: actions/github-script@v7
