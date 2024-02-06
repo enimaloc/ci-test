@@ -303,6 +303,7 @@ jobs:
               body += '- There are files in the fr package, please move them to a package\n'
               body += process.env.DIRLINT_SRC_FR_FILES
             }
+            console.log(body);
             github.rest.pulls.createReview({
               owner: context.repo.owner,
               repo: context.repo.repo,
