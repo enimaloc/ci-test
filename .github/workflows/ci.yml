@@ -1,10 +1,15 @@
 name: Continuous Integration
-on: [ push, pull_request ]
+on:
+  push:
+    branches-ignore:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   setup:
     name: Setup CI
-    if: github.event_name == 'pull_request' || github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -14,6 +19,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 16
+          cache: 'gradle'
       - name: Make Gradlew executable
         run: chmod +x gradlew
       - name: Saving current directory
@@ -38,10 +44,33 @@ jobs:
         uses: alehechka/download-tartifact@v2
         with:
           name: ci-setup
-      - name: Make Gradlew executable
-        run: chmod +x gradlew
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 16
+          cache: 'gradle'
+
       - name: Execute Gradle build
         run: ./gradlew build
+
+  test:
+    name: Test
+    if: needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Restore current directory
+        uses: alehechka/download-tartifact@v2
+        with:
+          name: ci-setup
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 16
+          cache: 'gradle'
+
+      - name: Execute Gradle test
+        run: ./gradlew test
 
   doclint:
     name: Doclint
@@ -57,6 +86,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 16
+          cache: 'gradle'
 
       - name: Execute Gradle javadoc
         run: javadoc -Xdoclint:all -sourcepath src/main/java -subpackages fr -d doc/ > doclint.log 2> doclint.err
@@ -65,6 +95,8 @@ jobs:
         if: always()
       - run: cat doclint.err
         if: always()
+
+
       - name: Check for doclint errors
         id: doclint-errors
         run: |
@@ -77,6 +109,8 @@ jobs:
           if grep -q "warning:" doclint.err; then
             echo "::set-output name=warning::true"
           fi
+
+
       - name: Comment on PR
         if: steps.doclint-errors.outputs.error == 'true' || steps.doclint-warnings.outputs.warning == 'true'
         uses: actions/github-script@v7
@@ -125,8 +159,73 @@ jobs:
               });
             }
             fs.writeFileSync(process.env.GITHUB_STEP_SUMMARY, comments.map(comment => `* ${comment.path}:${comment.line} - ${comment.body}`).join('\n'));
+
+  gendoc:
+    name: Generate documentation
+    if: needs.doclint.result == 'success' && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: doclint
+    steps:
+      - name: Restore current directory
+        uses: alehechka/download-tartifact@v2
+        with:
+          name: ci-setup
+      - name: Execute and Deploy Gradle javadoc
+        uses: MathieuSoysal/Javadoc-publisher.yml@v2.4.0
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          javadoc-branch: javadoc
+          java-version: 16
+          target-folder: doc
+          project: gradle
+
+  dirlint:
+    name: Directory lint
+    if: needs.setup.result == 'success'
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Restore current directory
+        uses: alehechka/download-tartifact@v2
+        with:
+          name: ci-setup
+      - name: Check for package structe
+        run: |
+          if [ -e src/main/java/*.java ] && [ -e src/test/java/fr/*.java ]; then
+            echo "::set-output name=error::true"
+            exit 1
+          fi
+
+  prReview:
+    name: Approve or deny PR
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: [ doclint, dirlint ]
+    steps:
+      - name: Restore current directory
+        uses: alehechka/download-tartifact@v2
+        with:
+          name: ci-setup
+      - name: Check for errors
+        id: check
+        run: |
+          if [ -e doclint.err ] || [ -e doclint.log ]; then
+            echo "::set-output name=error::true"
+          fi
+      - name: Deny PR
+        if: steps.check.outputs.error == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              event: 'REQUEST_CHANGES',
+              body: 'There are errors in the code, please fix them'
+            });
       - name: Approve PR
-        if: steps.doclint-errors.outputs.error != 'true' && steps.doclint-warnings.outputs.warning != 'true' && github.event_name == 'pull_request'
+        if: steps.check.outputs.error != 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -142,7 +241,7 @@ jobs:
     name: Finalize
     if: always()
     runs-on: ubuntu-latest
-    needs: [ build, doclint ]
+    needs: [ test, gendoc, prReview ]
     steps:
       - name: Remove artifact
         uses: jimschubert/delete-artifacts-action@v1
