@@ -92,7 +92,20 @@ jobs:
                 const line = match[2];
                 const type = match[3];
                 const message = match[4];
+                const fileFs = fs.readFileSync(file, 'utf8');
                 console.log(`[${type}] ${message} at ${file}:${line}`);
+                Check if line contains orr is prefixed by a suppress warning
+                if (fileFs.split('\n')[line - 1].includes('@SuppressWarnings("all")') || fileFs.split('\n')[line - 1].includes('@SuppressWarnings("doclint")')
+                  || fileFs.split('\n')[line].includes('@SuppressWarnings("all")') || fileFs.split('\n')[line ].includes('@SuppressWarnings("doclint")')) {
+                    console.log(`[${type}] ${message} at ${file}:${line} is suppressed, skipping...`);
+                    continue;
+                }
+                  comments.push({
+                    path: file,
+                    line: parseInt(line),
+                    body: `[${type}] ${message.replace(/(@\w+)/g, '`$1`')}`
+                  });
+                }
                 comments.push({
                   path: file,
                   line: parseInt(line),
