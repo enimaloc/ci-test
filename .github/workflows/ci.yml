@@ -9,6 +9,7 @@ on:
 jobs:
   setup:
     name: Setup CI
+    if: github.event_name == 'pull_request' || github.ref != 'refs/heads/master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4.1.1
@@ -353,8 +354,7 @@ jobs:
               body += `\n<details><summary>There are errors in the documentation</summary>\n<p>`
               let issues = process.env.DOCLINT_REASON.split('\0');
               for (const issue of issues) {
-                  const [file, line, message] = issue.split(':');
-                  body += `\n${file}:${line} - ${message}`;
+                  body += `\n - ${issue}`;
               }
               body += `\n</p></details>`
               console.log(process.env.DOCLINT_ERROR);
